@@ -1,5 +1,5 @@
 import { load } from "cheerio";
-import p from "phin";
+import JandaPress from "../../JandaPress";
 import c from "../../utils/options";
 
 interface IHentai2readGet {
@@ -17,10 +17,12 @@ interface IHentai2readGetPush {
 
 }
 
+const janda = new JandaPress();
+
 export async function scrapeContent(url: string) {
   try {
-    const res = await p(url);
-    const $ = load(res.body as Buffer);
+    const res = await janda.fetchBody(url);
+    const $ = load(res);
     const script = $("script").map((i, el) => $(el).text()).get();
 
     //find 'var gData = {}' inside script
@@ -43,7 +45,8 @@ export async function scrapeContent(url: string) {
       previus_url: gDataJson.previousURL
     };
     return data;
-  } catch (err: any) {
-    throw Error(err.message);
+  } catch (err) {
+    const e = err as Error;
+    throw Error(e.message);
   }
 }

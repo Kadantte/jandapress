@@ -1,5 +1,5 @@
 import { load } from "cheerio";
-import p from "phin";
+import JandaPress from "../../JandaPress";
 import c from "../../utils/options";
 
 interface IHentaiFoxSearch {
@@ -11,10 +11,12 @@ interface IHentaiFoxSearch {
   link: string;
 }
 
+const janda = new JandaPress();
+
 export async function scrapeContent(url: string) {
   try {
-    const res = await p({ url: url, followRedirects: true });
-    const $ = load(res.body as Buffer);
+    const res = await janda.fetchBody(url);
+    const $ = load(res);
 
     const title = $("h2.g_title").map((i, abc) => {
       return $(abc).text();
@@ -46,14 +48,19 @@ export async function scrapeContent(url: string) {
 
     }
 
+    if (content.length === 0) throw Error("No result found");
+    
+
     const data = {
+      success: true,
       data: content.filter(con => con.category !== ""),
       page: Number(url.split("&page=")[1]),
       sort: url.split("&sort=")[1].split("&")[0],
       source: url,
     };
     return data;
-  } catch (err: any) {
-    throw Error(err.message);
+  } catch (err) {
+    const e = err as Error;
+    throw Error(e.message);
   }
 }

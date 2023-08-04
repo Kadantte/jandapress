@@ -1,4 +1,4 @@
-import p from "phin";
+import JandaPress from "../../JandaPress";
 import c from "../../utils/options";
 import { getDate, timeAgo } from "../../utils/modifier";
 import { Nhentai } from "../../interfaces";
@@ -21,17 +21,20 @@ interface INhentaiGet {
   num_favorites: number;
   artist: string[];
   group: string;
-  parodies: string;
+  parodies: string[];
   characters: string[];
   upload_date: string;
 }
 
-export async function scrapeContent(url: string) {
+const janda = new JandaPress();
+
+export async function scrapeContent(url: string, random = false) {
   try {
-    const res = await p({ url: url, parse: "json" });
-    
+    let res, raw;
+    if (random) res = await janda.simulateNhentaiRequest(url), raw = res as Nhentai;
+    else res = await janda.fetchJson(url), raw = res as Nhentai;
+
     const GALLERY = "https://i.nhentai.net/galleries";
-    const raw = res.body as Nhentai;
     const imagesRaw = raw.images.pages;
 
     const images = Object.keys(imagesRaw)
@@ -44,7 +47,11 @@ export async function scrapeContent(url: string) {
 
     //get all tags.name
     const tagsRaw = raw.tags;
-    const tags = Object.keys(tagsRaw).map((key) => tagsRaw[parseInt(key)].name);
+    // all tags without filter
+    // const tags = Object.keys(tagsRaw).map((key) => tagsRaw[parseInt(key)].name);
+
+    const tagsFilter = tagsRaw.filter((tag) => tag.type === "tag");
+    const tags = tagsFilter.map((tag) => tag.name).sort() || [];
 
     const artistRaw = tagsRaw.filter((tag) => tag.type === "artist");
     const artist = artistRaw.map((tag) => tag.name) || [];
@@ -53,11 +60,11 @@ export async function scrapeContent(url: string) {
     const languageRaw = tagsRaw.find((tag) => tag.type === "language");
     const language = languageRaw ? languageRaw.name : "";
 
-    const parodiesRaw = tagsRaw.find((tag) => tag.type === "parody");
-    const parodies = parodiesRaw ? parodiesRaw.name : "";
+    const parodiesRaw = tagsRaw.filter((tag) => tag.type === "parody");
+    const parodies = parodiesRaw.map((tag) => tag.name) || [];
 
     const groupRaw = tagsRaw.find((tag) => tag.type === "group");
-    const group = groupRaw ? groupRaw.name : "";
+    const group = groupRaw ? groupRaw.name : "None";
 
     //get all "type": "character" in tagsRaw
     const charactersRaw = tagsRaw.filter((tag) => tag.type === "character");
@@ -87,11 +94,13 @@ export async function scrapeContent(url: string) {
     };
 
     const data = {
+      success: true,
       data: objectData,
       source: `${c.NHENTAI}/g/${raw.id}`,
     };
     return data;
-  } catch (err: any) {
-    throw Error(err.message);
+  } catch (err) {
+    const e = err as Error;
+    throw Error(e.message);
   }
 }

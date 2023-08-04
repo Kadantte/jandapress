@@ -1,5 +1,6 @@
 import { load } from "cheerio";
 import p from "phin";
+import JandaPress from "../../JandaPress";
 import c from "../../utils/options";
 import { getPururinInfo, getUrl } from "../../utils/modifier";
 
@@ -12,16 +13,24 @@ interface IGetPururin {
   image: string[];
 }
 
-interface IData{
+interface IData {
+  success: boolean;
   data: object;
   source: string;
 }
 
-export async function scrapeContent(url: string) {
+const janda = new JandaPress();
+
+export async function scrapeContent(url: string, random = false) {
   try {
-    const res = await p(url);
-    const $ = load(res.body);
-    const title: string = $("div.content-wrapper h1").html() || "";
+    let res, raw;
+    if (random) res = await p({ url: url }), raw = res.body;
+    else res = await janda.fetchBody(url), raw = res;
+
+    const $ = load(raw);
+    
+    const title: string = $("meta[property='og:title']").attr("content") || "";
+    if (!title) throw Error("Not found");
     
     const tags: string[] = $("div.content-wrapper ul.list-inline li").map((i, abc) => {
       return getPururinInfo($(abc).text());
@@ -29,8 +38,8 @@ export async function scrapeContent(url: string) {
 
     const cover = $("meta[property='og:image']").attr("content");
     const extension = `.${cover?.split(".").pop()}`;
-    const total: number = parseInt($("gallery-thumbnails").attr(":total") || "0");
-    const id: number = parseInt($("gallery-thumbnails").attr(":id") || "0");
+    const total: number = parseInt($("span[itemprop='numberOfPages']").text()) || 0;
+    const id: number = parseInt($("meta[property='og:url']").attr("content")?.split("/")[4] || "0");
 
     const image = [];
     for (let i = 0; i < total; i++) {
@@ -47,11 +56,13 @@ export async function scrapeContent(url: string) {
     };
 
     const data: IData = {
+      success: true,
       data: objectData,
       source: `${c.PURURIN}/gallery/${id}/janda`
     };
     return data;
-  } catch (err: any) {
-    throw Error(err.message);
+  } catch (err) {
+    const e = err as Error;
+    throw Error(e.message);
   }
 }

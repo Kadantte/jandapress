@@ -1,5 +1,5 @@
 import { load } from "cheerio";
-import p from "phin";
+import JandaPress from "../../JandaPress";
 import c from "../../utils/options";
 
 interface IHentaiFoxGet {
@@ -11,10 +11,12 @@ interface IHentaiFoxGet {
   image: string[];
 }
 
+const janda = new JandaPress();
+
 export async function scrapeContent(url: string) {
   try {
-    const res = await p({ url: url, followRedirects: true });
-    const $ = load(res.body as Buffer);
+    const res = await janda.fetchBody(url);
+    const $ = load(res);
     const id = parseInt($("a.g_button")?.attr("href")?.split("/")[2] || "");
   
     const category = $("a.tag_btn").map((i, abc) => {
@@ -22,9 +24,8 @@ export async function scrapeContent(url: string) {
     }).get();
 
     const imgSrc = $("img").map((i, el) => $(el).attr("data-src")).get();
-    const parameterImg = imgSrc[0].split("/").slice(0, imgSrc[0].split("/").length - 1).join("/");
+    const parameterImg2 = imgSrc[0].split("/").slice(0, 5).join("/");
     const extensionImg = `.${imgSrc[0].split(".").slice(-1)[0]}`;
-  
     const info = $("span.i_text.pages").map((i, abc) => {
       return $(abc).text();
     }).get();
@@ -32,7 +33,7 @@ export async function scrapeContent(url: string) {
     const pageCount = parseInt(info[0].replace(/[^0-9]/g, ""));
     const image = [];
     for (let i = 0; i < Number(pageCount); i++) {
-      image.push(`${parameterImg}/${i + 1}${extensionImg}`);
+      image.push(`${parameterImg2}/${i + 1}${extensionImg}`);
     }
     const titleInfo = $("div.info").children("h1").text();
    
@@ -46,11 +47,13 @@ export async function scrapeContent(url: string) {
     };
 
     const data = {
+      success: true,
       data: objectData,
       source: `${c.HENTAIFOX}/gallery/${id}/`,
     };
     return data;
-  } catch (err: any) {
-    throw Error(err.message);
+  } catch (err) {
+    const e = err as Error;
+    throw Error(e.message);
   }
 }

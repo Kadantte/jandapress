@@ -1,4 +1,4 @@
-import p from "phin";
+import JandaPress from "../../JandaPress";
 import c from "../../utils/options";
 import { getDate, timeAgo } from "../../utils/modifier";
 import { NhentaiSearch } from "../../interfaces";
@@ -23,10 +23,12 @@ interface INhentaiSearch {
   tags: string[];
 }
 
+const janda = new JandaPress();
+
 export async function scrapeContent(url: string) {
   try {
-    const res = await p({ url: url, parse: "json" });
-    const rawData = res.body as NhentaiSearch;
+    const res = await janda.fetchJson(url);
+    const rawData = res as NhentaiSearch;
   
     const content = [];
 
@@ -54,6 +56,7 @@ export async function scrapeContent(url: string) {
     }
     
     const data = {
+      success: true,
       data: content,
       page: Number(url.split("&page=")[1]),
       sort: url.split("&sort=")[1].split("&")[0],
@@ -61,7 +64,8 @@ export async function scrapeContent(url: string) {
     };
     return data;
     
-  } catch (err: any) {
-    throw Error(err.message);
+  } catch (err) {
+    const e = err as Error;
+    throw Error(e.message);
   }
 }
